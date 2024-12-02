@@ -1,14 +1,60 @@
 import os
 import logging
+import re
 
 import drain3
 from drain3.template_miner_config import TemplateMinerConfig
 from llama_cpp import Llama, LlamaGrammar
 
 from logdetective.constants import SUMMARIZE_PROMPT_TEMPLATE
-from logdetective.utils import get_chunks
+from logdetective.utils import get_chunks, process_log
 
 LOG = logging.getLogger("logdetective")
+
+class RegexExtractor:
+    """A class that extracts information from logs using dumb regexes
+    https://stackoverflow.com/questions/6107700/tool-to-extract-java-stack-traces-from-log-files
+    """
+    def __init__(self):
+        self.REGEX = re.compile("(^\tat |^Caused by: |^\t... \\d+ more)")
+        # Usually, all inner lines of a stack trace will be "at" or "Caused by" lines.
+        # With one exception: the line following a "nested exception is" line does not
+        # follow that convention. Due to that, this line is handled separately.
+        self.CONT = re.compile("; nested exception is: *$")
+
+        self.exceptions = []
+
+    def __call__(self, log: str) -> list[str]:
+        self.process_log(log)
+        return list(map(lambda exception: '\n'.join(exception[:5]), self.exceptions))
+
+    def register_exception(self, exc: list[str]):
+        self.exceptions.append(exc)
+
+    def process_log(self, log: str):
+        current_match = []
+        last_line = None
+        add_next_line = False
+        for line in log.splitlines():
+            if add_next_line and len(current_match) > 0:
+                add_next_line = False
+                current_match.append(line)
+                continue
+            match = self.REGEX.search(line) is not None
+            if match and len(current_match) > 0:
+                current_match.append(line)
+            elif match:
+                current_match.append(last_line)
+                current_match.append(line)
+            else:
+                if len(current_match) > 0:
+                    self.register_exception(current_match)
+                current_match = []
+            last_line = line
+            add_next_line = self.CONT.search(line) is not None
+        # If last line in file was a stack trace
+        if len(current_match) > 0:
+            self.register_exception(current_match)
 
 
 class LLMExtractor:

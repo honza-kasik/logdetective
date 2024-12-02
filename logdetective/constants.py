@@ -20,6 +20,24 @@ Analysis:
 
 """
 
+EAPQE_PROMPT_TEMPLATE = """
+Given following log snippets, and nothing else, explain what failure, if any, occurred during a testsuite run. Tests
+were run against a WildFly or EAP server instance.
+
+Analysis of the snippets must be in a format of [X] : [Y], where [X] is a log snippet, and [Y] is the explanation.
+Snippets themselves must not be altered in any way whatsoever.
+
+Snippets are delimited with '================'.
+
+Finally, drawing on information from all snippets, provide complete explanation of the issue and recommend solution.
+
+Snippets:
+
+{}
+
+Analysis:
+"""
+
 SUMMARIZE_PROMPT_TEMPLATE = """
 Does following log contain error or issue?
 
@@ -43,3 +61,17 @@ Snippet:
 Analysis:
 
 """
+
+EAPQE_SNIPPET_PROMPT_TEMPLATE = """
+Analyse following Java testsuite log snippet. The testsuite is run in Jenkins environment.
+Analysis of the snippets must be in a format of [X] : [Y], where [X] is a log snippet, and [Y] is the explanation.
+Snippets themselves must not be altered in any way whatsoever.
+
+Snippet:
+
+{}
+
+Analysis:
+
+"""
+

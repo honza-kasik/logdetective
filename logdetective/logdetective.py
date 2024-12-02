@@ -5,7 +5,7 @@ import sys
 from logdetective.constants import DEFAULT_ADVISOR
 from logdetective.utils import (
     process_log, initialize_model, retrieve_log_content, format_snippets, compute_certainty)
-from logdetective.extractors import LLMExtractor, DrainExtractor
+from logdetective.extractors import LLMExtractor, DrainExtractor, RegexExtractor
 
 LOG = logging.getLogger("logdetective")
 
@@ -23,7 +23,7 @@ def setup_args():
                         default="Q4_K_S.gguf")
     parser.add_argument("-n", "--no-stream", action='store_true')
     parser.add_argument("-S", "--summarizer", type=str, default="drain",
-                        help="Choose between LLM and Drain template miner as the log summarizer.\
+                        help="Choose between LLM, Drain template miner and dumb regex as the log summarizer.\
                                 LLM must be specified as path to a model, URL or local file.")
     parser.add_argument("-N", "--n_lines", type=int,
                         default=8, help="The number of lines per chunk for LLM analysis.\
@@ -66,6 +66,8 @@ def main():
     # Log file summarizer selection and initialization
     if args.summarizer == "drain":
         extractor = DrainExtractor(args.verbose > 1, context=True, max_clusters=args.n_clusters)
+    elif args.summarizer == "regex":
+        extractor = RegexExtractor()
     else:
         summarizer_model = initialize_model(args.summarizer, verbose=args.verbose > 2)
         extractor = LLMExtractor(summarizer_model, args.verbose > 1)
@@ -75,7 +77,7 @@ def main():
     try:
         log = retrieve_log_content(args.file)
     except ValueError as e:
-        # file does not exists
+        # file does not exist
         LOG.error(e)
         sys.exit(4)
     log_summary = extractor(log)
